@@ -32,7 +32,7 @@ var urlencodedParser = bodyParser.urlencoded({extended: false});
 
 var question=require('../question.js');
 
-
+//res.cookie(name, id);
 module.exports = function(app){
 
 
@@ -48,11 +48,17 @@ module.exports = function(app){
 	
 	app.use('/qapp/:name', function(req, res, next){
 
-		if(!req.session.user){
-			res.render('notlogged');	
-		}
-		else
-			next();
+		if(req.cookies.name == null || req.cookies.id == null)
+			res.render('notlogged');
+		User.findOne({username: req.cookies.name}, function(err, obj){
+			if(obj == null)
+				res.render('notlogged');
+			else if(obj._id == req.cookies.id)
+				next();
+			else
+				res.render('notlogged');
+		});
+		
 	});
 	
 	
@@ -95,36 +101,36 @@ module.exports = function(app){
     //When the follow button is pressed for the :name user by the current user, this post request is made
     app.post('/qapp/viewprofile/:name', urlencodedParser, function(req, res){
 		
-		if(req.session.user === null)
+		if(req.cookies.name === null)
             res.render('notlogged');
 		
 		else
 			{
-            	User.findOne({username: req.session.user}, function(err, obj){
+            	User.findOne({username: req.cookies.name}, function(err, obj){
                 if(err)
 					throw err;
                 var temp = obj.following;     
                 var isFound = temp.indexOf(req.params.name);
                 if(isFound === -1){
                     temp.push(req.params.name);
-                    User.findOneAndUpdate({username: req.session.user}, {following: temp}, function(err, obj){
+                    User.findOneAndUpdate({username: req.cookies.name}, {following: temp}, function(err, obj){
                         if(err)
                             throw err;
                         User.findOne({username: req.params.name}, function(err, obj){
                             if(err) throw err;
                             var currFollowers = obj.followers;
-                            currFollowers.push(req.session.user);
+                            currFollowers.push(req.cookies.name);
                             User.findOneAndUpdate({username: req.params.name}, {followers: currFollowers}, function(err, obj){
                                 if(err)
                                     throw err;
-                                res.redirect('/qapp/' + req.session.user);
+                                res.redirect('/qapp/' + req.cookies.name);
                             });
                         });
                     });
                 }
                 else
                 {
-                    res.redirect('/qapp/' + req.session.user);    
+                    res.redirect('/qapp/' + req.cookies.name);    
                 }
 
             });
@@ -146,7 +152,7 @@ module.exports = function(app){
 	app.post('/search', urlencodedParser, function(req,res){
 		question.find({name: {$regex: req.body.qry, $options: 'i'}}, function(err, obj){
 			var p={arr:obj};
-			var result = {obj: obj, name: req.session.user};
+			var result = {obj: obj, name: req.cookies.name};
 			res.send(result);	
 		});
 	});
@@ -209,7 +215,8 @@ module.exports = function(app){
 	});
 	
 	app.post('/home', urlencodedParser, function(req, res){
-		req.session.user = null;
+		res.clearCookie('id');    //To clear cookie after logout
+		res.clearCookie('name');
 		res.redirect('/home');
 	});
 	
@@ -233,7 +240,8 @@ module.exports = function(app){
 				data.error = true;
 			}
 			else{
-				req.session.user = newLogin.username;
+				res.cookie('id', obj._id);
+				res.cookie('name', obj.username);
 			}
 			res.json(data);	
 		});
@@ -263,7 +271,8 @@ module.exports = function(app){
 			if(obj === null){
 				var newUser = User(userInfo).save(function(err, data){
 					if(err) throw err;
-					req.session.user = userInfo.username;	
+					res.cookie('id', data._id);
+					res.cookie('name', data.username);
 					res.json(userInfo);
 
 					});
