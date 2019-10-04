@@ -5,7 +5,7 @@ A Question or Answer Website based on the idea of Quora built using Node.JS, Exp
 * Ask or Answer a question.
 * Follow a person.
 * Upvote an answer.
-* Search by question or User.
+* Dynamic search by question or Username.
 
 The website makes the feed dynamic upon searching a question using ajax search box.
 
